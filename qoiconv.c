@@ -55,10 +55,17 @@ int main(int argc, char **argv) {
 		exit(1);
 	}
 
-	void *pixels = NULL;
+	unsigned char *pixels = NULL;
 	int w, h;
 	if (STR_ENDS_WITH(argv[1], ".png")) {
+		stbi_set_flip_vertically_on_load(1);
 		pixels = (void *)stbi_load(argv[1], &w, &h, NULL, 4);
+		// Premultiply alpha.
+		for(int i = 0; i < 4*w*h; i += 4){
+			pixels[i + 0] = pixels[i + 0]*pixels[i + 3]/255;
+			pixels[i + 1] = pixels[i + 1]*pixels[i + 3]/255;
+			pixels[i + 2] = pixels[i + 2]*pixels[i + 3]/255;
+		}
 	}
 	else if (STR_ENDS_WITH(argv[1], ".qoi")) {
 		pixels = qoi_read(argv[1], &w, &h, 4);
