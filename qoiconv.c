@@ -68,7 +68,7 @@ int main(int argc, char **argv) {
 		}
 	}
 	else if (STR_ENDS_WITH(argv[1], ".qoi")) {
-		pixels = qoi_read(argv[1], &w, &h, 4);
+		pixels = qoi_read(NULL, argv[1], &w, &h, 4);
 	}
 
 	if (pixels == NULL) {
@@ -81,7 +81,7 @@ int main(int argc, char **argv) {
 		encoded = stbi_write_png(argv[2], w, h, 4, pixels, 0);
 	}
 	else if (STR_ENDS_WITH(argv[2], ".qoi")) {
-		encoded = qoi_write(argv[2], pixels, w, h, 4);
+		encoded = qoi_write(NULL, argv[2], pixels, w, h, 4);
 	}
 
 	if (!encoded) {

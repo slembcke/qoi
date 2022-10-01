@@ -166,7 +166,7 @@ extern "C" {
 // The function returns 0 on failure (invalid parameters, or fopen or malloc 
 // failed) or the number of bytes written on success.
 
-int qoi_write(const char *filename, const void *data, int w, int h, int channels);
+int qoi_write(void* mem, const char *filename, const void *data, int w, int h, int channels);
 
 
 // Read and decode a QOI image from the file system into either raw RGB 
@@ -176,7 +176,7 @@ int qoi_write(const char *filename, const void *data, int w, int h, int channels
 // be set to the width and height of the decoded image.
 // The returned pixel data should be free()d after use.
 
-void *qoi_read(const char *filename, int *out_w, int *out_h, int channels);
+void *qoi_read(void* mem, const char *filename, int *out_w, int *out_h, int channels);
 
 #endif // QOI_NO_STDIO
 
@@ -189,7 +189,7 @@ void *qoi_read(const char *filename, int *out_w, int *out_h, int channels);
 // is set to the size in bytes of the encoded data.
 // The returned qoi data should be free()d after user.
 
-void *qoi_encode(const void *data, int w, int h, int channels, int *out_len);
+void *qoi_encode(void* mem, const void *data, int w, int h, int channels, int *out_len);
 
 
 // Decode a QOI image from memory into either raw RGB (channels=3) or RGBA 
@@ -199,7 +199,7 @@ void *qoi_encode(const void *data, int w, int h, int channels, int *out_len);
 // be set to the width and height of the decoded image.
 // The returned pixel data should be free()d after use.
 
-void *qoi_decode(const void *data, int size, int *out_w, int *out_h, int channels);
+void *qoi_decode(void* mem, const void *data, int size, int *out_w, int *out_h, int channels);
 
 #ifdef __cplusplus
 }
@@ -214,8 +214,8 @@ void *qoi_decode(const void *data, int size, int *out_w, int *out_h, int channel
 #include <stdlib.h>
 
 #ifndef QOI_MALLOC
-	#define QOI_MALLOC(sz) malloc(sz)
-	#define QOI_FREE(p)    free(p)
+	#define QOI_MALLOC(mem, sz) malloc(sz)
+	#define QOI_FREE(mem, p, sz)    free(p)
 #endif
 
 #define QOI_INDEX   0x00 // 00xxxxxx
@@ -251,7 +251,7 @@ typedef struct {
 
 static const qoi_magic_t qoi_magic = {.chars = {'q','o','i','f'}};
 
-void *qoi_encode(const void *data, int w, int h, int channels, int *out_len) {
+void *qoi_encode(void* mem, const void *data, int w, int h, int channels, int *out_len) {
 	if (
 		data == NULL || out_len == NULL ||
 		w <= 0 || w >= (1 << 16) ||
@@ -263,7 +263,7 @@ void *qoi_encode(const void *data, int w, int h, int channels, int *out_len) {
 
 	int max_size = w * h * (channels + 1) + sizeof(qoi_header_t) + 4;
 	int p = 0;
-	unsigned char *bytes = QOI_MALLOC(max_size);
+	unsigned char *bytes = QOI_MALLOC(mem, max_size);
 	if (!bytes) {
 		return NULL;
 	}
@@ -371,7 +371,7 @@ void *qoi_encode(const void *data, int w, int h, int channels, int *out_len) {
 	return bytes;
 }
 
-void *qoi_decode(const void *data, int size, int *out_w, int *out_h, int channels) {
+void *qoi_decode(void* mem, const void *data, int size, int *out_w, int *out_h, int channels) {
 	if ((size_t)size < sizeof(qoi_header_t)) {
 		return NULL;
 	}
@@ -387,7 +387,7 @@ void *qoi_decode(const void *data, int size, int *out_w, int *out_h, int channel
 	}
 
 	int px_len = header->width * header->height * channels;
-	unsigned char *pixels = QOI_MALLOC(px_len);
+	unsigned char *pixels = QOI_MALLOC(mem, px_len);
 	if (!pixels) {
 		return NULL;
 	}
@@ -463,26 +463,26 @@ void *qoi_decode(const void *data, int size, int *out_w, int *out_h, int channel
 #ifndef QOI_NO_STDIO
 #include <stdio.h>
 
-int qoi_write(const char *filename, const void *data, int w, int h, int channels) {
+int qoi_write(void* mem, const char *filename, const void *data, int w, int h, int channels) {
 	int size;
-	void *encoded = qoi_encode(data, w, h, channels, &size);
+	void *encoded = qoi_encode(mem, data, w, h, channels, &size);
 	if (!encoded) {
 		return 0;
 	}
 
 	FILE *f = fopen(filename, "wb");
 	if (!f) {
-		QOI_FREE(encoded);
+		QOI_FREE(mem, encoded, size);
 		return 0;
 	}
 	
 	fwrite(encoded, 1, size, f);
 	fclose(f);
-	QOI_FREE(encoded);
+	QOI_FREE(mem, encoded, size);
 	return size;
 }
 
-void *qoi_read(const char *filename, int *out_w, int *out_h, int channels) {
+void *qoi_read(void* mem, const char *filename, int *out_w, int *out_h, int channels) {
 	FILE *f = fopen(filename, "rb");
 	if (!f) {
 		return NULL;
@@ -492,7 +492,7 @@ void *qoi_read(const char *filename, int *out_w, int *out_h, int channels) {
 	int size = ftell(f);
 	fseek(f, 0, SEEK_SET);
 
-	void *data = QOI_MALLOC(size);
+	void *data = QOI_MALLOC(mem, size);
 	if (!data) {
 		return NULL;
 	}
@@ -500,8 +500,8 @@ void *qoi_read(const char *filename, int *out_w, int *out_h, int channels) {
 	int bytes_read = fread(data, 1, size, f);
 	fclose(f);
 
-	void *pixels = qoi_decode(data, bytes_read, out_w, out_h, channels);
-	QOI_FREE(data);
+	void *pixels = qoi_decode(NULL, data, bytes_read, out_w, out_h, channels);
+	QOI_FREE(mem, data, size);
 	return pixels;
 }
 
