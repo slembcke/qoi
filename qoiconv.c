@@ -1,33 +1,18 @@
 /*
 
+Copyright (c) 2021, Dominic Szablewski - https://phoboslab.org
+SPDX-License-Identifier: MIT
+
+
 Command line tool to convert between png <> qoi format
 
-Requires "stb_image.h" and "stb_image_write.h"
+Requires:
+	-"stb_image.h" (https://github.com/nothings/stb/blob/master/stb_image.h)
+	-"stb_image_write.h" (https://github.com/nothings/stb/blob/master/stb_image_write.h)
+	-"qoi.h" (https://github.com/phoboslab/qoi/blob/master/qoi.h)
+
 Compile with: 
 	gcc qoiconv.c -std=c99 -O3 -o qoiconv
-
-Dominic Szablewski - https://phoboslab.org
-
-
--- LICENSE: The MIT License(MIT)
-
-Copyright(c) 2021 Dominic Szablewski
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of
-this software and associated documentation files(the "Software"), to deal in
-the Software without restriction, including without limitation the rights to
-use, copy, modify, merge, publish, distribute, sublicense, and / or sell copies
-of the Software, and to permit persons to whom the Software is furnished to do
-so, subject to the following conditions :
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
 
 */
 
@@ -48,10 +33,10 @@ SOFTWARE.
 
 int main(int argc, char **argv) {
 	if (argc < 3) {
-		printf("Usage: qoiconv infile outfile\n");
-		printf("Examples:\n");
-		printf("  qoiconv image.png image.qoi\n");
-		printf("  qoiconv image.qoi image.png\n");
+		puts("Usage: qoiconv <infile> <outfile>");
+		puts("Examples:");
+		puts("  qoiconv input.png output.qoi");
+		puts("  qoiconv input.qoi output.png");
 		exit(1);
 	}
 
@@ -68,7 +53,10 @@ int main(int argc, char **argv) {
 		}
 	}
 	else if (STR_ENDS_WITH(argv[1], ".qoi")) {
-		pixels = qoi_read(NULL, argv[1], &w, &h, 4);
+		qoi_desc desc;
+		pixels = qoi_read(NULL, argv[1], &desc, 4);
+		w = desc.width;
+		h = desc.height;
 	}
 
 	if (pixels == NULL) {
@@ -81,7 +69,9 @@ int main(int argc, char **argv) {
 		encoded = stbi_write_png(argv[2], w, h, 4, pixels, 0);
 	}
 	else if (STR_ENDS_WITH(argv[2], ".qoi")) {
-		encoded = qoi_write(NULL, argv[2], pixels, w, h, 4);
+		encoded = qoi_write(NULL, argv[2], pixels, &(qoi_desc){
+			.width = w, .height = h, .channels = 4, .colorspace = QOI_SRGB
+		});
 	}
 
 	if (!encoded) {
@@ -89,5 +79,6 @@ int main(int argc, char **argv) {
 		exit(1);
 	}
 
+	free(pixels);
 	return 0;
 }
